@@ -19,8 +19,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef MAG_ARRAY_H
-#define MAG_ARRAY_H
+#ifndef MAGPIE_ARRAY_H
+#define MAGPIE_ARRAY_H
 
 #include <stddef.h>
 #include <sys/types.h>
@@ -231,4 +231,4 @@ ssize_t array_binary_search(struct array* a,
                             int (*compare)(const void*, const void*),
                             const void* element);
 
-#endif /* MAG_ARRAY_H */
+#endif /* MAGPIE_ARRAY_H */
