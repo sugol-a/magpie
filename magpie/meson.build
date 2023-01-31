@@ -2,9 +2,12 @@ pkg = import('pkgconfig')
 
 sources = [
   'ebuf.c',
+  'hash.c',
   'collections/array.c',
   'collections/list.c',
   'collections/interop.c',
+  'collections/hashmap.c',
+  'math/prime.c',
 ]
 
 magpie = library(

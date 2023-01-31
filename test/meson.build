@@ -16,5 +16,14 @@ linked_lists = executable(
   dependencies: cunit
 )
 
+hashmap = executable(
+  'magpie_hashmaps',
+  sources: 'test_hashmap.c',
+  include_directories: inc,
+  link_with: magpie,
+  dependencies: cunit,
+)
+
 test('test arrays', arrays)
 test('test linked lists', linked_lists)
+test('test hashmaps', hashmap)
