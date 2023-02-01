@@ -43,7 +43,7 @@ struct ebuf_entry {
 #ifdef MAGPIE_INTERNAL
 #    define EBUF_PUSH(MSG, BLAME)                                             \
         {                                                                     \
-            ebuf_push((MSG), __PRETTY_FUNCTION__, __LINE__, (BLAME));         \
+            ebuf_push((MSG), __func__, __LINE__, (BLAME));         \
         }
 
 void
