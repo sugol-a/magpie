@@ -19,7 +19,6 @@
  * THE SOFTWARE.
  */
 
-#include "collections/array.h"
 #include <stddef.h>
 #include <stdlib.h>
 
