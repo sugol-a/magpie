@@ -46,7 +46,7 @@ struct hashmap_entry {
 struct hashmap_iter {
     struct array* buckets;
     size_t bucket;
-    struct list_iter bucket_iter;
+    struct list* current_entry;
 };
 
 int hashmap_init(struct hashmap* map,

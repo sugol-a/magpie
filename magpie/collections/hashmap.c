@@ -209,7 +209,7 @@ hashmap_iter(struct hashmap* map)
     struct hashmap_iter iter = {
         .buckets     = &map->buckets,
         .bucket      = 0,
-        .bucket_iter = { .i = -1, }
+        .current_entry = NULL,
     };
 
     return iter;
@@ -218,36 +218,30 @@ hashmap_iter(struct hashmap* map)
 int
 hashmap_iter_next(struct hashmap_iter* iter)
 {
-    struct hashmap_entry* entry;
-    int do_next_bucket = iter->bucket_iter.i < 0;
+    int has_next = 0;
 
-    while (iter->bucket < iter->buckets->length) {
-        if (do_next_bucket) {
-            iter->bucket_iter = list_iter(iter->buckets->elements[iter->bucket++]);
-
-            /* skip the head */
-            list_iter_next(&iter->bucket_iter);
-
-            do_next_bucket = 0;
+    while (!has_next) {
+        if (iter->bucket < iter->buckets->length && iter->current_entry == NULL) {
+            iter->current_entry = iter->buckets->elements[iter->bucket++];
         }
 
-        if (!list_iter_next(&iter->bucket_iter)) {
-            do_next_bucket = 1;
-            continue;
+        if (iter->current_entry == NULL) {
+            return 0;
         }
 
-        entry = list_iter_get(&iter->bucket_iter)->data;
-        if (entry->alive) {
-            return 1;
-        }
+        iter->current_entry = iter->current_entry->next;
+        has_next = iter->current_entry != NULL;
     }
-
-    return 0;
+    
+    return 1;
 }
 
 struct hashmap_entry*
 hashmap_iter_get(struct hashmap_iter* iter)
 {
-    struct hashmap_entry* entry = list_iter_get(&iter->bucket_iter)->data;
-    return entry;
+    if (iter->current_entry == NULL) {
+        return NULL;
+    }
+
+    return iter->current_entry->data;
 }
