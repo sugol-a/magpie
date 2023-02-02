@@ -19,11 +19,9 @@
  * THE SOFTWARE.
  */
 
-#include <string.h>
-#define _GNU_SOURCE 1
-
 #include <assert.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define MAGPIE_INTERNAL 1
 
@@ -37,13 +35,10 @@ struct sort_inner {
 
 static int resize(struct array* a, size_t min_capacity);
 
-static void insertion_sort(struct array* a,
-                           int (*compare)(const void*, const void*),
-                           int direction);
+static void insertion_sort(struct array* a, struct sort_inner* inner);
 
-static void quicksort(struct array* a,
-                      int (*compare)(const void*, const void*),
-                      int direction);
+static void
+quicksort(struct array* a, struct sort_inner* inner, size_t low, size_t high);
 
 static int compare_inner(const void* a, const void* b, void* extra);
 
@@ -179,12 +174,12 @@ array_sort(struct array* a,
            int sort,
            int direction)
 {
-    switch (sort) {
-        case ARRAY_INSERTION_SORT:
-            insertion_sort(a, compare, direction);
-            break;
+    struct sort_inner inner = { .compare = compare, .direction = direction };
 
-        case ARRAY_QUICKSORT: quicksort(a, compare, direction); break;
+    switch (sort) {
+        case ARRAY_INSERTION_SORT: insertion_sort(a, &inner); break;
+
+        case ARRAY_QUICKSORT: quicksort(a, &inner, 0, a->length - 1); break;
 
         default: EBUF_PUSH("invalid sorting algorithm specified", a); break;
     }
@@ -246,18 +241,15 @@ resize(struct array* a, size_t min_capacity)
 }
 
 static void
-insertion_sort(struct array* a,
-               int (*compare)(const void*, const void*),
-               int direction)
+insertion_sort(struct array* a, struct sort_inner* inner)
 {
-    struct sort_inner inner = { .compare = compare, .direction = direction };
-    size_t            i     = 1;
+    size_t i = 1;
 
     while (i < a->length) {
         size_t j = i;
 
         while (j > 0
-               && compare_inner(&a->elements[j - 1], &a->elements[j], &inner)
+               && compare_inner(&a->elements[j - 1], &a->elements[j], inner)
                       > 0) {
             swap(&a->elements[j - 1], &a->elements[j]);
             j--;
@@ -267,32 +259,48 @@ insertion_sort(struct array* a,
     }
 }
 
-static void
-quicksort(struct array* a,
-          int (*compare)(const void*, const void*),
-          int direction)
+static inline size_t
+quicksort_partition(struct array*      a,
+                    struct sort_inner* inner,
+                    size_t             low,
+                    size_t             high)
 {
-    struct sort_inner inner = { .compare = compare, .direction = direction };
+    void*  pivot;
+    size_t midpoint = (low + high) / 2;
+    size_t i        = low - 1;
 
-    qsort_r(a->elements,
-            a->length,
-            sizeof(*a->elements),
-            compare_inner,
-            &inner);
+    pivot = a->elements[midpoint];
+    swap(&a->elements[midpoint], &a->elements[high]);
+
+    for (size_t j = low; j < high; j++) {
+        if (compare_inner(&a->elements[j], &pivot, inner) <= 0) {
+            swap(&a->elements[j], &a->elements[++i]);
+        }
+    }
+
+    swap(&a->elements[++i], &a->elements[high]);
+    return i;
 }
 
-static int
+static void
+quicksort(struct array* a, struct sort_inner* inner, size_t low, size_t high)
+{
+    size_t partition_index;
+
+    if (low >= high) {
+        return;
+    }
+
+    partition_index = quicksort_partition(a, inner, low, high);
+    quicksort(a, inner, low, partition_index - 1);
+    quicksort(a, inner, partition_index + 1, high);
+}
+
+static inline int
 compare_inner(const void* a, const void* b, void* extra)
 {
     const struct sort_inner* inner = extra;
-
-    switch (inner->direction) {
-        case ARRAY_SORT_ASCENDING: return inner->compare(a, b);
-
-        case ARRAY_SORT_DESCENDING: return 1 - inner->compare(a, b);
-    }
-
-    return 0;
+    return inner->compare(a, b) * inner->direction;
 }
 
 static int

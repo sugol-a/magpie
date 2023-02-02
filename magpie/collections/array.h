@@ -64,8 +64,8 @@ enum array_sort_algorithm {
  * - `ARRAY_SORT_DESCENDING` :: Sort an array in descending order
  */
 enum array_sort_direction {
-    ARRAY_SORT_ASCENDING = 0,
-    ARRAY_SORT_DESCENDING,
+    ARRAY_SORT_ASCENDING = 1,
+    ARRAY_SORT_DESCENDING = -1,
 };
 
 /**
