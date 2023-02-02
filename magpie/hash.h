@@ -25,5 +25,6 @@
 #include <stdint.h>
 
 uint64_t hash_str(const void* a);
+void hash_seed(uint64_t seed);
 
 #endif /* MAGPIE_HASH_H */

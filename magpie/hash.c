@@ -28,11 +28,19 @@
 
 #include <magpie/hash.h>
 
+static uint64_t seed = 0;
+
+void
+hash_seed(uint64_t s)
+{
+    seed = s;
+}
+
 uint64_t
 hash_str(const void* a)
 {
     const char* str = *(const char**)a;
     const size_t len = strlen(str);
     
-    return XXH64(str, len, 0);
+    return XXH64(str, len, seed);
 }
