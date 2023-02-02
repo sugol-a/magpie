@@ -46,9 +46,10 @@ struct ebuf_entry {
             ebuf_push((MSG), __func__, __LINE__, (BLAME));         \
         }
 
+#endif
+
 void
 ebuf_push(const char* message, const char* function, size_t line, void* blame);
-#endif
 
 struct ebuf_entry* ebuf_pop(void);
 
