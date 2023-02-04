@@ -2,10 +2,10 @@
  * Copyright (C) 2023  Alister Sanders
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
+ * of this software and associated documentation files (the "Software"), to
+ * deal in the Software without restriction, including without limitation the
+ * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+ * sell copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
@@ -14,9 +14,9 @@
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
 #include <stddef.h>
@@ -80,12 +80,12 @@ insert(struct hashmap* map, void* key, uint64_t key_hash, void* value)
 
     /* skip the head */
     list_iter_next(&it);
-    
+
     /* Look for a tombstone to place the item in first */
     while (list_iter_next(&it)) {
-        struct list* l = list_iter_get(&it);
+        struct list*          l = list_iter_get(&it);
         struct hashmap_entry* e = l->data;
-        
+
         if (!e->alive) {
             entry = e;
             break;
@@ -95,9 +95,9 @@ insert(struct hashmap* map, void* key, uint64_t key_hash, void* value)
     if (entry == NULL) {
         struct list* entry_item;
 
-        entry = malloc(sizeof(*entry));
+        entry      = malloc(sizeof(*entry));
         entry_item = list_alloc(entry);
-        
+
         list_append(head, entry_item);
     }
 
@@ -207,9 +207,9 @@ struct hashmap_iter
 hashmap_iter(struct hashmap* map)
 {
     struct hashmap_iter iter = {
-        .buckets     = &map->buckets,
-        .bucket      = 0,
-        .current_entry = NULL,
+        .buckets      = &map->buckets,
+        .bucket       = 0,
+        .current_iter = {.i = -1, .current = NULL, .pending = NULL},
     };
 
     return iter;
@@ -221,27 +221,47 @@ hashmap_iter_next(struct hashmap_iter* iter)
     int has_next = 0;
 
     while (!has_next) {
-        if (iter->bucket < iter->buckets->length && iter->current_entry == NULL) {
-            iter->current_entry = iter->buckets->elements[iter->bucket++];
+        struct list*          list_entry;
+        struct hashmap_entry* entry;
+
+        if (iter->current_iter.i < 0) {
+            if (iter->bucket >= iter->buckets->length) {
+                break;
+            }
+
+            iter->current_iter
+                = list_iter(iter->buckets->elements[iter->bucket++]);
+
+            /* skip list head */
+            list_iter_next(&iter->current_iter);
         }
 
-        if (iter->current_entry == NULL) {
-            return 0;
+        if (!list_iter_next(&iter->current_iter)) {
+            iter->current_iter.i = -1;
+            continue;
         }
 
-        iter->current_entry = iter->current_entry->next;
-        has_next = iter->current_entry != NULL;
+        list_entry = list_iter_get(&iter->current_iter);
+        entry      = list_entry->data;
+
+        if (!entry->alive) {
+            continue;
+        }
+
+        has_next = 1;
     }
-    
-    return 1;
+
+    return has_next;
 }
 
 struct hashmap_entry*
 hashmap_iter_get(struct hashmap_iter* iter)
 {
-    if (iter->current_entry == NULL) {
+    struct list* list_entry = list_iter_get(&iter->current_iter);
+
+    if (list_entry == NULL) {
         return NULL;
     }
 
-    return iter->current_entry->data;
+    return list_entry->data;
 }
