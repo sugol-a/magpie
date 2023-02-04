@@ -595,6 +595,37 @@ test_insertion(void)
 }
 
 void
+test_remove(void)
+{
+    const size_t n_entries = 100;
+    char* remove_keys[] = {
+        "tender", "forgetful", "boring", "overt", "save", "wooden", "acid"
+    };
+    const size_t n_remove_keys = sizeof(remove_keys) / sizeof(remove_keys[0]);
+    
+    struct hashmap map = make_hashmap(large_entries, n_entries);
+
+    /* Make sure the hashmap actually contains the entries first */
+    for (size_t i = 0; i < n_remove_keys; i++) {
+        struct hashmap_entry* e = hashmap_lookup(&map, remove_keys[i]);
+        CU_ASSERT(e != NULL);
+        CU_ASSERT(strcmp(e->key, remove_keys[i]) == 0);
+    }
+
+    for (size_t i = 0; i < n_remove_keys; i++) {
+        hashmap_remove(&map, remove_keys[i]);
+    }
+
+    /* Ensure the entries were actually removed */
+    for (size_t i = 0; i < n_remove_keys; i++) {
+        struct hashmap_entry* e = hashmap_lookup(&map, remove_keys[i]);
+        CU_ASSERT(e == NULL);
+    }
+
+    hashmap_destroy(&map);
+}
+
+void
 test_iter(void)
 {
     const size_t n_entries  = sizeof(large_entries) / sizeof(large_entries[0]);
@@ -669,9 +700,48 @@ test_iter(void)
     hashmap_destroy(&map);
 }
 
+void
+test_iter_after_remove(void)
+{
+    const size_t n_entries = sizeof(large_entries) / sizeof(large_entries[0]);
+    char* remove_keys[] = {
+        "tender", "forgetful", "boring", "overt", "save", "wooden", "acid"
+    };
+
+    const size_t n_remove_keys = sizeof(remove_keys) / sizeof(remove_keys[0]);
+    
+    struct hashmap map = make_hashmap(large_entries, n_entries);
+
+    size_t count_iter = 0;
+    size_t count_iter_after_remove = 0;
+
+    struct hashmap_iter it1 = hashmap_iter(&map);
+    while (hashmap_iter_next(&it1)) {
+        count_iter++;
+    }
+
+    for (size_t i = 0; i < n_remove_keys; i++) {
+        hashmap_remove(&map, remove_keys[i]);
+    }
+
+    struct hashmap_iter it2 = hashmap_iter(&map);
+    while (hashmap_iter_next(&it2)) {
+        struct hashmap_entry* e = hashmap_iter_get(&it2);
+        count_iter_after_remove++;
+
+        for (size_t i = 0; i < n_remove_keys; i++) {
+            CU_ASSERT(strcmp(remove_keys[i], e->key) != 0);
+        }
+    }
+
+    CU_ASSERT(count_iter - n_remove_keys == count_iter_after_remove);
+}
+
 static struct test_case tests[] = {
     { .name = "test hashmap insertion",    .test_function = test_insertion},
-    { .name = "test hashmap iterator", .test_function = test_iter }
+    { .name = "test hashmap remove", .test_function = test_remove },
+    { .name = "test hashmap iterator", .test_function = test_iter },
+    { .name = "test hashmap iterator after remove", .test_function = test_iter_after_remove },
 };
 
 TEST_MAIN("hashmaps", tests)
