@@ -19,6 +19,7 @@
  * IN THE SOFTWARE.
  */
 
+#include "collections/array.h"
 #include <stddef.h>
 #include <stdlib.h>
 
@@ -69,6 +70,12 @@ lookup(struct hashmap* map, void* key, uint64_t key_hash)
     return NULL;
 }
 
+static inline float
+load_factor(struct hashmap* map)
+{
+    return ((float)map->n_entries) / ((float)map->buckets.length);
+}
+
 static int
 insert(struct hashmap* map, void* key, uint64_t key_hash, void* value)
 {
@@ -106,8 +113,77 @@ insert(struct hashmap* map, void* key, uint64_t key_hash, void* value)
     entry->hash  = key_hash;
     entry->alive = 1;
 
-    /* TODO: return 1 if we need to rehash */
-    return 0;
+    return load_factor(map) > MAGPIE_HASHMAP_LOAD_THRESHOLD;
+}
+
+static inline void
+clean_bucket(struct list* root)
+{
+    struct list_iter it;
+    struct list*     first_child = root->next;
+
+    if (first_child == NULL) {
+        return;
+    }
+
+    it = list_iter(first_child);
+    while (list_iter_next(&it)) {
+        struct list* item = list_iter_get(&it);
+        free(item);
+    }
+
+    root->next = NULL;
+}
+
+static int
+resize_to(struct hashmap* map, size_t capacity)
+{
+    struct array        entries;
+    struct hashmap_iter it;
+
+    if (capacity <= map->buckets.length) {
+        return 0;
+    }
+
+    array_init_with_capacity(&entries, map->n_entries);
+    it = hashmap_iter(map);
+
+    /* save all the current entries for re-insertion */
+    while (hashmap_iter_next(&it)) {
+        struct hashmap_entry* entry = hashmap_iter_get(&it);
+
+        /* don't preserve tombstones */
+        if (entry->alive) {
+            array_push(&entries, entry);
+        }
+        else {
+            free(entry);
+        }
+    }
+
+    /* purge the currently allocated buckets */
+    for (size_t i = 0; i < map->buckets.length; i++) {
+        struct list* root = map->buckets.elements[i];
+        clean_bucket(root);
+    }
+
+    /* allocate new buckets */
+    for (size_t i = map->n_entries; i < capacity; i++) {
+        array_push(&map->buckets, list_alloc(NULL));
+    }
+
+    /* re-insert entries */
+    for (size_t i = 0; i < entries.length; i++) {
+        struct hashmap_entry* entry        = entries.elements[i];
+        size_t                bucket_index = bucket_for_hash(map, entry->hash);
+        struct list*          root = map->buckets.elements[bucket_index];
+
+        list_append(root, list_alloc(entry));
+    }
+
+    array_destroy(&entries);
+
+    return 1;
 }
 
 int
@@ -122,8 +198,9 @@ hashmap_init(struct hashmap* map,
         array_push(&map->buckets, list_alloc(NULL));
     }
 
-    map->hash    = hash;
-    map->compare = compare;
+    map->n_entries = 0;
+    map->hash      = hash;
+    map->compare   = compare;
 
     return 1;
 }
@@ -150,17 +227,24 @@ hashmap_destroy(struct hashmap* map)
 void
 hashmap_set(struct hashmap* map, void* key, void* value)
 {
-    uint64_t key_hash = map->hash(&key);
+    int      needs_resize = 0;
+    uint64_t key_hash     = map->hash(&key);
 
     /* Check whether the hashmap already contains an entry for this key */
     struct hashmap_entry* entry = lookup(map, key, key_hash);
 
     if (entry == NULL) {
-        insert(map, key, key_hash, value);
+        needs_resize = insert(map, key, key_hash, value);
+        map->n_entries++;
     }
     else {
         entry->value = value;
         entry->alive = 1;
+    }
+
+    if (needs_resize) {
+        size_t next_size = next_prime(map->buckets.length * 2);
+        resize_to(map, next_size);
     }
 }
 
@@ -201,6 +285,7 @@ hashmap_remove(struct hashmap* map, void* key)
     }
 
     entry->alive = 0;
+    map->n_entries--;
 }
 
 struct hashmap_iter

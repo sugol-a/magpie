@@ -27,11 +27,16 @@
 #include <stdint.h>
 
 #ifndef MAGPIE_HASHMAP_INITIAL_BUCKETS
-#    define MAGPIE_HASHMAP_INITIAL_BUCKETS 128
+#    define MAGPIE_HASHMAP_INITIAL_BUCKETS 256
+#endif
+
+#ifndef MAGPIE_HASHMAP_LOAD_THRESHOLD
+#    define MAGPIE_HASHMAP_LOAD_THRESHOLD 0.75
 #endif
 
 struct hashmap {
     struct array buckets;
+    size_t       n_entries;
     uint64_t (*hash)(const void*);
     int (*compare)(const void*, const void*);
 };
