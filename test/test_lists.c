@@ -78,8 +78,7 @@ test_append(void)
     struct list_iter it = list_iter(root);
     
     while (list_iter_next(&it)) {
-        const struct list* l = list_iter_get(&it);
-        CU_ASSERT(l->data == strings[it.i]);
+        CU_ASSERT(it.element == strings[it.i]);
     }
 
     CU_ASSERT(it.i == sizeof(strings) / sizeof(strings[0]));
